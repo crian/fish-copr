@@ -1,0 +1,84 @@
+name: Update fish
+
+on:
+  schedule:
+    - cron: "0 6 * * *"      # daily at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "fish version (empty = latest upstream version)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine target version
+        id: v
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            new="$INPUT_VERSION"
+          else
+            tag=$(gh api repos/fish-shell/fish-shell/releases/latest --jq .tag_name)
+            new="${tag#v}"
+          fi
+          echo "$new" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Invalid version: $new"; exit 1; }
+          cur=$(awk '/^Version:/ {print $2; exit}' fish.spec)
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          echo "cur=$cur" >> "$GITHUB_OUTPUT"
+
+      - name: Build vendor tarball and upload as release
+        env:
+          NEW: ${{ steps.v.outputs.new }}
+        run: |
+          if gh release view "v$NEW" >/dev/null 2>&1; then
+            echo "Release v$NEW already exists."
+            exit 0
+          fi
+          rustup update stable
+          bash scripts/make-vendor.sh "$NEW" dist
+          gh release create "v$NEW" "dist/fish-$NEW-vendor.tar.xz" \
+            --title "fish $NEW (vendored crates)" \
+            --notes "Vendor tarball for COPR build of fish $NEW." \
+            --latest=false
+
+      - name: Bump spec and open PR
+        env:
+          NEW: ${{ steps.v.outputs.new }}
+          CUR: ${{ steps.v.outputs.cur }}
+        run: |
+          newest=$(printf '%s\n%s\n' "$CUR" "$NEW" | sort -V | tail -n1)
+          if [ "$NEW" = "$CUR" ] || [ "$newest" != "$NEW" ]; then
+            echo "Spec is already up-to-date (or newer)."
+            exit 0
+          fi
+          branch="bump-fish-$NEW"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists."
+            exit 0
+          fi
+
+          sed -i "s/^\(Version:\s*\).*/\1$NEW/" fish.spec
+          sed -i "s/^\(Release:\s*\)[0-9]\+/\11/" fish.spec
+          date_str=$(LC_ALL=C date -u +'%a %b %d %Y')
+          sed -i "/^%changelog/a * $date_str fish-copr <noreply@github.com> - $NEW-1\n- Update to fish $NEW" fish.spec
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -am "Update fish to $NEW"
+          git push origin "$branch"
+          gh pr create \
+            --title "Update fish to $NEW" \
+            --body "Automatic bump to upstream release $NEW. The vendor tarball is attached to release v$NEW. Merging this PR will trigger the COPR build via webhook." \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$branch"
