@@ -12,6 +12,6 @@ Automated Fedora COPR source builds for the **fish shell** with vendored Rust cr
 ## Installation
 
 ```bash
-sudo dnf copr enable YOUR_USER/fish
+sudo dnf copr enable crian/fish
 sudo dnf install fish
 fish --version
