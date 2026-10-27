@@ -70,7 +70,7 @@ jobs:
           sed -i "s/^\(Version:\s*\).*/\1$NEW/" fish.spec
           sed -i "s/^\(Release:\s*\)[0-9]\+/\11/" fish.spec
           date_str=$(LC_ALL=C date -u +'%a %b %d %Y')
-          sed -i "/^%changelog/a * $date_str fish-copr <noreply@github.com> - $NEW-1\n- Update to fish $NEW" fish.spec
+          sed -i "/^%changelog/a * $date_str fish-copr crian <crian84@gmail.com> - $NEW-1\n- Update to fish $NEW" fish.spec
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

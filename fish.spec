@@ -104,4 +104,5 @@ fi
 %{_docdir}/fish/
 
 %changelog
-%autochangelog
+* Tue Oct 27 2026 fish-copr crian <crian84@gmail.com> - 4.9.3-1
+- First COPR package: fish 4.9.3 from sources with vendored crates
