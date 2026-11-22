@@ -61,6 +61,7 @@ export RUSTFLAGS="%{build_rustflags}"
 %cmake -GNinja \
     -DCMAKE_BUILD_TYPE=Release \
     -DWITH_DOCS=ON \
+    -DFISH_USE_SYSTEM_PCRE2=ON \
     -DCMAKE_INSTALL_SYSCONFDIR=%{_sysconfdir} \
     -DCMAKE_INSTALL_DOCDIR=%{_docdir}/fish
 %cmake_build

@@ -20,8 +20,10 @@ src="$work/fish-${version}"
 mkdir -p "$work/out/.cargo"
 cd "$work/out"
 {
-  cat "$src/.cargo/config.toml"
-  echo
+  if [ -f "$src/.cargo/config.toml" ]; then
+    cat "$src/.cargo/config.toml"
+    echo
+  fi
   cargo vendor --locked --manifest-path "$src/Cargo.toml"
 } > .cargo/config.toml
 
